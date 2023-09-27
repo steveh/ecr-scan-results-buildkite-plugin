@@ -13,6 +13,10 @@ import (
 
 var registryImageExpr = regexp.MustCompile(`^(?P<registryId>[^.]+)\.dkr\.ecr\.(?P<region>[^.]+).amazonaws.com/(?P<repoName>[^:]+)(?::(?P<tag>.+))?$`)
 
+type ScanFindings struct {
+	types.ImageScanFindings
+}
+
 type RegistryInfo struct {
 	// RegistryID is the AWS ECR account ID of the source registry.
 	RegistryID string
@@ -112,7 +116,7 @@ func (r *RegistryScan) WaitForScanFindings(ctx context.Context, digestInfo Regis
 	})
 }
 
-func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo RegistryInfo) (*ecr.DescribeImageScanFindingsOutput, error) {
+func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo RegistryInfo) (*ScanFindings, error) {
 	pg := ecr.NewDescribeImageScanFindingsPaginator(r.Client, &ecr.DescribeImageScanFindingsInput{
 		RegistryId:     &digestInfo.RegistryID,
 		RepositoryName: &digestInfo.Name,
@@ -121,28 +125,34 @@ func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo RegistryI
 		},
 	})
 
-	var out *ecr.DescribeImageScanFindingsOutput
+	findings := []types.ImageScanFinding{}
+	enhancedFindings := []types.EnhancedImageScanFinding{}
+
+	imageScanFindings := types.ImageScanFindings{}
 
 	for pg.HasMorePages() {
-		pg, err := pg.NextPage(ctx)
+		page, err := pg.NextPage(ctx)
 		if err != nil {
 			return nil, err
 		}
 
-		if out == nil {
-			out = pg
-		} else if out.ImageScanFindings != nil {
-			findings := out.ImageScanFindings
-			if findings == nil {
-				findings = &types.ImageScanFindings{}
-				out.ImageScanFindings = findings
-			}
-
-			// build the entire set in memory 🤞
-			findings.Findings = append(findings.Findings, pg.ImageScanFindings.Findings...)
-			findings.EnhancedFindings = append(findings.EnhancedFindings, pg.ImageScanFindings.EnhancedFindings...)
+		// no more pages
+		if page == nil {
+			break
 		}
+
+		if !pg.HasMorePages() {
+			imageScanFindings = *page.ImageScanFindings
+		}
+
+		findings = append(findings, page.ImageScanFindings.Findings...)
+		enhancedFindings = append(enhancedFindings, page.ImageScanFindings.EnhancedFindings...)
 	}
 
-	return out, nil
+	imageScanFindings.Findings = findings
+	imageScanFindings.EnhancedFindings = enhancedFindings
+
+	return &ScanFindings{
+		ImageScanFindings: imageScanFindings,
+	}, nil
 }
