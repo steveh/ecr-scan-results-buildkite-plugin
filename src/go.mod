@@ -1,6 +1,6 @@
 module github.com/cultureamp/ecrscanresults
 
-go 1.20
+go 1.21
 
 require (
 	github.com/MarvinJWendt/testza v0.4.1
