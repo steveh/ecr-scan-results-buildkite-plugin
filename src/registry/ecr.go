@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -116,7 +117,7 @@ func (r *RegistryScan) WaitForScanFindings(ctx context.Context, digestInfo Regis
 	})
 }
 
-func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo RegistryInfo) (*ScanFindings, error) {
+func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo RegistryInfo, ignoreList []string) (*ScanFindings, error) {
 	pg := ecr.NewDescribeImageScanFindingsPaginator(r.Client, &ecr.DescribeImageScanFindingsInput{
 		RegistryId:     &digestInfo.RegistryID,
 		RepositoryName: &digestInfo.Name,
@@ -149,8 +150,24 @@ func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo RegistryI
 		enhancedFindings = append(enhancedFindings, page.ImageScanFindings.EnhancedFindings...)
 	}
 
-	imageScanFindings.Findings = findings
-	imageScanFindings.EnhancedFindings = enhancedFindings
+	filteredFindings := []types.ImageScanFinding{}
+
+	for _, finding := range findings {
+		if !slices.Contains(ignoreList, *finding.Name) {
+			filteredFindings = append(filteredFindings, finding)
+		}
+	}
+
+	filteredEnhancedFindings := []types.EnhancedImageScanFinding{}
+
+	for _, finding := range enhancedFindings {
+		if !slices.Contains(ignoreList, *finding.Title) {
+			filteredEnhancedFindings = append(filteredEnhancedFindings, finding)
+		}
+	}
+
+	imageScanFindings.Findings = filteredFindings
+	imageScanFindings.EnhancedFindings = filteredEnhancedFindings
 
 	return &ScanFindings{
 		ImageScanFindings: imageScanFindings,
