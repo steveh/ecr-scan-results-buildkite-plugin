@@ -66,7 +66,6 @@ func main() {
 			// annotation fails. We annotate to notify the user of the issue,
 			// otherwise it would be lost in the log.
 			annotation := fmt.Sprintf("ECR scan results plugin could not create a result for the image %s", "")
-			fmt.Println(annotation)
 			_ = agent.Annotate(ctx, annotation, "error", hash(pluginConfig.Repository))
 		}
 	}
