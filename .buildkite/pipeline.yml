@@ -1,15 +1,21 @@
 steps:
-  - label: ":golang: Build"
-    command: "cd src && go build ."
+  - label: ":broom: Lint"
+    key: lint
+    command: "make lint"
     plugins:
-      - golang#v2.0.0:
-          version: 1.21
-          import: github.com/buildkite/agent
+      docker-compose#v4.8.0:
+        run: go
 
   - label: ":test-analytics: Test"
-    command: "cd src && go test ./..."
+    key: test
+    command: "make test"
     plugins:
-      - golang#v2.0.0:
-          version: 1.21
-          import: github.com/buildkite/agent
+      docker-compose#v4.8.0:
+        run: go
 
+  - label: ":golang: Build"
+    key: build
+    command: "make ecrscanresults"
+    plugins:
+      docker-compose#v4.8.0:
+        run: go
