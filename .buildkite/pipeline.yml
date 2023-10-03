@@ -1,0 +1,15 @@
+steps:
+  - label: ":golang: Build"
+    command: "cd src && go build ."
+    plugins:
+      - golang#v2.0.0:
+          version: 1.21
+          import: github.com/buildkite/agent
+
+  - label: ":test-analytics: Test"
+    command: "cd src && go test ./..."
+    plugins:
+      - golang#v2.0.0:
+          version: 1.21
+          import: github.com/buildkite/agent
+
