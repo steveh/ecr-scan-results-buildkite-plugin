@@ -10,7 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
-	"github.com/cultureamp/ecrscanresults/registry"
+	"github.com/buildkite/ecrscanresults/registry"
 	"github.com/justincampbell/timeago"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
