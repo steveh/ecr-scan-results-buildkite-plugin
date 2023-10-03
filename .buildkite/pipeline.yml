@@ -19,3 +19,20 @@ steps:
     plugins:
       docker-compose#v4.8.0:
         run: go
+
+  - wait
+
+  - label: ":github: Release"
+    if: "build.tag != null"
+    key: release
+    command: ".buildkite/steps/release.sh"
+    plugins:
+      - aws-assume-role-with-web-identity:
+          role-arn: arn:aws:iam::445615400570:role/pipeline-buildkite-ecrscanresults
+      - aws-ssm#v1.0.0:
+          parameters:
+            GITHUB_TOKEN: /pipelines/buildkite/ecr-scan-results-buildkite-plugin/GITHUB_TOKEN
+      - docker-compose#v4.8.0:
+          run: go
+          env:
+            - GITHUB_TOKEN
