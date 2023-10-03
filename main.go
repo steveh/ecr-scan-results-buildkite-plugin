@@ -11,11 +11,12 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/buildkite/ecrscanresults/buildkite"
-	"github.com/buildkite/ecrscanresults/registry"
-	"github.com/buildkite/ecrscanresults/report"
-	"github.com/buildkite/ecrscanresults/runtimeerrors"
 	"github.com/kelseyhightower/envconfig"
+
+	"github.com/buildkite/ecrscanresults/internal/buildkite"
+	"github.com/buildkite/ecrscanresults/internal/registry"
+	"github.com/buildkite/ecrscanresults/internal/report"
+	"github.com/buildkite/ecrscanresults/internal/runtimeerrors"
 )
 
 const pluginEnvironmentPrefix = "BUILDKITE_PLUGIN_ECR_SCAN_RESULTS"
