@@ -12,7 +12,7 @@ fi
 echo "--- Checking GitHub token"
 
 if [ -z "$GITHUB_TOKEN" ]; then
-  echo "\$GITHUB_TOKEN env variable must contain a Github API token with permission to create releases in buildkite/bik"
+  echo "\$GITHUB_TOKEN env variable must contain a Github API token with permission to create releases in buildkite/ecr-scan-results-buildkite-plugin"
   exit 1
 fi
 
