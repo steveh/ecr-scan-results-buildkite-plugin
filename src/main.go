@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"flag"
 	"fmt"
 	"io/fs"
 	"os"
@@ -24,6 +25,7 @@ type Config struct {
 	ImageLabel                string `envconfig:"IMAGE_LABEL" split_words:"true"`
 	CriticalSeverityThreshold int32  `envconfig:"MAX_CRITICALS" split_words:"true"`
 	HighSeverityThreshold     int32  `envconfig:"MAX_HIGHS" split_words:"true"`
+	IgnoredVulnerabilities    []string
 }
 
 func main() {
@@ -40,6 +42,12 @@ func main() {
 		buildkite.LogFailuref("max-highs must be greater than or equal to 0")
 		os.Exit(1)
 	}
+
+	var ignoredVulnerabilities = flag.String("ignore", "", "Comma separates list of CVEs to ignore. Eg. CVE-2020-1234,CVE-2020-5678")
+
+	flag.Parse()
+
+	pluginConfig.IgnoredVulnerabilities = strings.Split(*ignoredVulnerabilities, ",")
 
 	ctx := context.Background()
 	agent := buildkite.Agent{}
@@ -98,7 +106,7 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 
 	buildkite.Log("report ready, retrieving ...")
 
-	findings, err := scan.GetScanFindings(ctx, imageDigest)
+	findings, err := scan.GetScanFindings(ctx, imageDigest, pluginConfig.IgnoredVulnerabilities)
 	if err != nil {
 		return runtimeerrors.NonFatal("could not retrieve scan results", err)
 	}
@@ -117,7 +125,7 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 	annotationCtx := report.AnnotationContext{
 		Image:                     imageID,
 		ImageLabel:                pluginConfig.ImageLabel,
-		ScanFindings:              *findings.ImageScanFindings,
+		ScanFindings:              findings.ImageScanFindings,
 		CriticalSeverityThreshold: pluginConfig.CriticalSeverityThreshold,
 		HighSeverityThreshold:     pluginConfig.HighSeverityThreshold,
 	}
