@@ -14,13 +14,13 @@ builds:
       - arm64
       - ppc64le
     ldflags:
-      - - -s -w -X main.version={{.Version}} -X main.builtBy=goreleaser
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.builtBy=goreleaser
 
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
 
 archives:
-  - format: 'binary'
+  - format: "binary"
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
 
 snapshot:
@@ -28,5 +28,4 @@ snapshot:
 
 changelog:
   use: github-native
-
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
