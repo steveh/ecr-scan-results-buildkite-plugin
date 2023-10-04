@@ -88,6 +88,10 @@ When supplied, this is used to title the report annotation in place of the
 repository name and tag. Useful sometimes when the repo name and tag make the
 reports harder to scan visually.
 
+### `ignore` (Optional, string[])
+
+When supplied, this is used to ignore specific CVEs.
+
 ## Requirements
 
 ### ECR Scan on Push
