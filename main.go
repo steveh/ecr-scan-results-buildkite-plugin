@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
-	"flag"
 	"fmt"
 	"io/fs"
 	"os"
@@ -22,7 +21,7 @@ import (
 const pluginEnvironmentPrefix = "BUILDKITE_PLUGIN_ECR_SCAN_RESULTS"
 
 type Config struct {
-	Repository                string   `envconfig:"IMAGE_NAME"    required:"true"    split_words:"true"`
+	Repository                string   `envconfig:"IMAGE_NAME"    required:"false"    split_words:"true"`
 	ImageLabel                string   `envconfig:"IMAGE_LABEL"   split_words:"true"`
 	CriticalSeverityThreshold int32    `envconfig:"MAX_CRITICALS" split_words:"true"`
 	HighSeverityThreshold     int32    `envconfig:"MAX_HIGHS"     split_words:"true"`
@@ -43,12 +42,6 @@ func main() {
 		buildkite.LogFailuref("max-highs must be greater than or equal to 0")
 		os.Exit(1)
 	}
-
-	var ignoredVulnerabilities = flag.String("ignore", "", "Comma separates list of CVEs to ignore. Eg. CVE-2020-1234,CVE-2020-5678")
-
-	flag.Parse()
-
-	pluginConfig.IgnoredVulnerabilities = strings.Split(*ignoredVulnerabilities, ",")
 
 	ctx := context.Background()
 	agent := buildkite.Agent{}
