@@ -13,6 +13,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 
 	"github.com/buildkite/ecrscanresults/src/buildkite"
+	"github.com/buildkite/ecrscanresults/src/env"
 	"github.com/buildkite/ecrscanresults/src/registry"
 	"github.com/buildkite/ecrscanresults/src/report"
 	"github.com/buildkite/ecrscanresults/src/runtimeerrors"
@@ -41,6 +42,11 @@ func main() {
 	if pluginConfig.HighSeverityThreshold < 0 {
 		buildkite.LogFailuref("max-highs must be greater than or equal to 0")
 		os.Exit(1)
+	}
+
+	if len(pluginConfig.IgnoredVulnerabilities) == 0 {
+		prefix := fmt.Sprintf("%s_%s_", pluginEnvironmentPrefix, "IGNORE")
+		pluginConfig.IgnoredVulnerabilities = env.ParseWithPrefix(prefix)
 	}
 
 	ctx := context.Background()
