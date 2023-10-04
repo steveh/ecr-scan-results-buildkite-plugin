@@ -106,6 +106,7 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 	}
 
 	buildkite.Logf("retrieved. %d findings in report.\n", len(findings.ImageScanFindings.Findings))
+	buildkite.Logf("ignored vulnerabilities (%d): %v\n", len(pluginConfig.IgnoredVulnerabilities), pluginConfig.IgnoredVulnerabilities)
 
 	criticalFindings := findings.ImageScanFindings.FindingSeverityCounts["CRITICAL"]
 	highFindings := findings.ImageScanFindings.FindingSeverityCounts["HIGH"]
