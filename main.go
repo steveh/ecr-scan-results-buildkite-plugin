@@ -13,20 +13,20 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/kelseyhightower/envconfig"
 
-	"github.com/buildkite/ecrscanresults/internal/buildkite"
-	"github.com/buildkite/ecrscanresults/internal/registry"
-	"github.com/buildkite/ecrscanresults/internal/report"
-	"github.com/buildkite/ecrscanresults/internal/runtimeerrors"
+	"github.com/buildkite/ecrscanresults/src/buildkite"
+	"github.com/buildkite/ecrscanresults/src/registry"
+	"github.com/buildkite/ecrscanresults/src/report"
+	"github.com/buildkite/ecrscanresults/src/runtimeerrors"
 )
 
 const pluginEnvironmentPrefix = "BUILDKITE_PLUGIN_ECR_SCAN_RESULTS"
 
 type Config struct {
-	Repository                string `envconfig:"IMAGE_NAME" split_words:"true" required:"true"`
-	ImageLabel                string `envconfig:"IMAGE_LABEL" split_words:"true"`
-	CriticalSeverityThreshold int32  `envconfig:"MAX_CRITICALS" split_words:"true"`
-	HighSeverityThreshold     int32  `envconfig:"MAX_HIGHS" split_words:"true"`
-	IgnoredVulnerabilities    []string
+	Repository                string   `envconfig:"IMAGE_NAME"    required:"true"    split_words:"true"`
+	ImageLabel                string   `envconfig:"IMAGE_LABEL"   split_words:"true"`
+	CriticalSeverityThreshold int32    `envconfig:"MAX_CRITICALS" split_words:"true"`
+	HighSeverityThreshold     int32    `envconfig:"MAX_HIGHS"     split_words:"true"`
+	IgnoredVulnerabilities    []string `envconfig:"IGNORE"`
 }
 
 func main() {

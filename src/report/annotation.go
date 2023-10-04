@@ -14,7 +14,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
-	"github.com/buildkite/ecrscanresults/internal/registry"
+	"github.com/buildkite/ecrscanresults/src/registry"
 )
 
 //go:embed annotation.gohtml

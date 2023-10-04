@@ -8,8 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 
-	"github.com/buildkite/ecrscanresults/internal/registry"
-	"github.com/buildkite/ecrscanresults/internal/report"
+	"github.com/buildkite/ecrscanresults/src/registry"
+	"github.com/buildkite/ecrscanresults/src/report"
 )
 
 func TestReports(t *testing.T) {

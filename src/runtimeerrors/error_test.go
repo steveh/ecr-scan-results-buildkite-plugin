@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/buildkite/ecrscanresults/internal/runtimeerrors"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/buildkite/ecrscanresults/src/runtimeerrors"
 )
 
 func TestIIsFatal(t *testing.T) {
