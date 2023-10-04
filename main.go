@@ -21,7 +21,7 @@ import (
 const pluginEnvironmentPrefix = "BUILDKITE_PLUGIN_ECR_SCAN_RESULTS"
 
 type Config struct {
-	Repository                string   `envconfig:"IMAGE_NAME"    required:"false"    split_words:"true"`
+	Repository                string   `envconfig:"IMAGE_NAME"    required:"true"    split_words:"true"`
 	ImageLabel                string   `envconfig:"IMAGE_LABEL"   split_words:"true"`
 	CriticalSeverityThreshold int32    `envconfig:"MAX_CRITICALS" split_words:"true"`
 	HighSeverityThreshold     int32    `envconfig:"MAX_HIGHS"     split_words:"true"`
