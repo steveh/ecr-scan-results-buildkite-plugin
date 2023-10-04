@@ -28,7 +28,7 @@ steps:
     command: ".buildkite/steps/release.sh"
     plugins:
       - aws-assume-role-with-web-identity:
-          role-arn: arn:aws:iam::445615400570:role/pipeline-buildkite-ecrscanresults
+          role-arn: arn:aws:iam::445615400570:role/pipeline-buildkite-ecr-scan-results-buildkite-plugin
       - aws-ssm#v1.0.0:
           parameters:
             GITHUB_TOKEN: /pipelines/buildkite/ecr-scan-results-buildkite-plugin/GITHUB_TOKEN
