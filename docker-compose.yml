@@ -13,7 +13,7 @@ services:
 
   lint:
     image: buildkite/plugin-linter
-    command: [ '--id', 'cultureamp/ecr-scan-results' ]
+    command: [ '--id', 'buildkite/ecr-scan-results' ]
     volumes:
       - ".:/plugin:ro"
 
