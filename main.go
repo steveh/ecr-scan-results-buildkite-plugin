@@ -4,28 +4,29 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
-	"flag"
 	"fmt"
 	"io/fs"
 	"os"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/cultureamp/ecrscanresults/buildkite"
-	"github.com/cultureamp/ecrscanresults/registry"
-	"github.com/cultureamp/ecrscanresults/report"
-	"github.com/cultureamp/ecrscanresults/runtimeerrors"
 	"github.com/kelseyhightower/envconfig"
+
+	"github.com/buildkite/ecrscanresults/src/buildkite"
+	"github.com/buildkite/ecrscanresults/src/env"
+	"github.com/buildkite/ecrscanresults/src/registry"
+	"github.com/buildkite/ecrscanresults/src/report"
+	"github.com/buildkite/ecrscanresults/src/runtimeerrors"
 )
 
 const pluginEnvironmentPrefix = "BUILDKITE_PLUGIN_ECR_SCAN_RESULTS"
 
 type Config struct {
-	Repository                string `envconfig:"IMAGE_NAME" split_words:"true" required:"true"`
-	ImageLabel                string `envconfig:"IMAGE_LABEL" split_words:"true"`
-	CriticalSeverityThreshold int32  `envconfig:"MAX_CRITICALS" split_words:"true"`
-	HighSeverityThreshold     int32  `envconfig:"MAX_HIGHS" split_words:"true"`
-	IgnoredVulnerabilities    []string
+	Repository                string   `envconfig:"IMAGE_NAME"    required:"true"    split_words:"true"`
+	ImageLabel                string   `envconfig:"IMAGE_LABEL"   split_words:"true"`
+	CriticalSeverityThreshold int32    `envconfig:"MAX_CRITICALS" split_words:"true"`
+	HighSeverityThreshold     int32    `envconfig:"MAX_HIGHS"     split_words:"true"`
+	IgnoredVulnerabilities    []string `envconfig:"IGNORE"`
 }
 
 func main() {
@@ -43,11 +44,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	var ignoredVulnerabilities = flag.String("ignore", "", "Comma separates list of CVEs to ignore. Eg. CVE-2020-1234,CVE-2020-5678")
-
-	flag.Parse()
-
-	pluginConfig.IgnoredVulnerabilities = strings.Split(*ignoredVulnerabilities, ",")
+	if len(pluginConfig.IgnoredVulnerabilities) == 0 {
+		prefix := fmt.Sprintf("%s_%s_", pluginEnvironmentPrefix, "IGNORE")
+		pluginConfig.IgnoredVulnerabilities = env.ParseWithPrefix(prefix)
+	}
 
 	ctx := context.Background()
 	agent := buildkite.Agent{}
@@ -112,6 +112,7 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 	}
 
 	buildkite.Logf("retrieved. %d findings in report.\n", len(findings.ImageScanFindings.Findings))
+	buildkite.Logf("ignored vulnerabilities (%d): %v\n", len(pluginConfig.IgnoredVulnerabilities), pluginConfig.IgnoredVulnerabilities)
 
 	criticalFindings := findings.ImageScanFindings.FindingSeverityCounts["CRITICAL"]
 	highFindings := findings.ImageScanFindings.FindingSeverityCounts["HIGH"]

@@ -21,7 +21,7 @@ steps:
   - command: "command which creates an image"
     # the docker-compose plugin may be used here instead of a command
     plugins:
-      - cultureamp/ecr-scan-results#v1.2.0:
+      - buildkite/ecr-scan-results#v1.0.0:
           image-name: "$BUILD_REPO:deploy-$BUILD_TAG"
 ```
 
@@ -34,9 +34,9 @@ steps:
     agents:
       queue: ${BUILD_AGENT}
     plugins:
-      - cultureamp/aws-assume-role:
+      - buildkite/aws-assume-role:
           role: ${BUILD_ROLE}
-      - cultureamp/ecr-scan-results#v1.2.0:
+      - buildkite/ecr-scan-results#v1.2.0:
           image-name: "$BUILD_REPO:deploy-$BUILD_TAG"
 ```
 
@@ -52,9 +52,9 @@ steps:
     agents:
       queue: ${BUILD_AGENT}
     plugins:
-      - cultureamp/aws-assume-role:
+      - buildkite/aws-assume-role:
           role: ${BUILD_ROLE}
-      - cultureamp/ecr-scan-results#v1.2.0:
+      - buildkite/ecr-scan-results#v1.2.0:
           image-name: "$BUILD_REPO:deploy-$BUILD_TAG"
           max-criticals: "1"
           max-highs: "10"
@@ -88,6 +88,10 @@ When supplied, this is used to title the report annotation in place of the
 repository name and tag. Useful sometimes when the repo name and tag make the
 reports harder to scan visually.
 
+### `ignore` (Optional, string[])
+
+When supplied, this is used to ignore specific CVEs.
+
 ## Requirements
 
 ### ECR Scan on Push
@@ -96,14 +100,11 @@ This plugin assumes that the ECR repository has the `ScanOnPush` setting set (se
 the [AWS
 docs](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning.html)
 for more information). By default this is not set on AWS ECR repositories.
-However `Base Infrastructure for Services` configures this for all repostories
-that it creates so for `cultureamp` pipelines no change should be required.
 
 ### Agent role requires the ecr:DescribeImages permission
 
 The Buildkite agent needs the AWS IAM `ecr:DescribeImages` permission to
-retrieve the vulnerability scan counts. Culture Amp build-roles created by `Base
-Infrastructure for Services` have all been modified to include this permission.
+retrieve the vulnerability scan counts.
 
 ### Scratch images are not supported
 
@@ -120,13 +121,13 @@ for more information.
 
 ### I have a vulnerability that isn't resolved yet, but I can wait on fixing. How do I do configure this plugin so I can unblock my builds?
 
-Refer to how to set your [max-criticals](https://github.com/cultureamp/ecr-scan-results-buildkite-plugin#max-criticals-optional-string), and [max-highs](https://github.com/cultureamp/ecr-scan-results-buildkite-plugin#max-highs-optional-string).
+Refer to how to set your [max-criticals](https://github.com/buildkite/ecr-scan-results-buildkite-plugin#max-criticals-optional-string), and [max-highs](https://github.com/buildkite/ecr-scan-results-buildkite-plugin#max-highs-optional-string).
 
 ### Are there guidelines on using up?
 
 Yes. Changing the `max-criticals` and `max-high` settings should not be taken lightly.
 
-This option is effectively a deferral of fixing the vulnerability. **Assess the situation first**. If the CVE describes a scenario that aligns with how your project is used, then you should be working to fix it rather than defer it. For help on this, check out the following the steps outlined [here](https://cultureamp.atlassian.net/wiki/spaces/PST/pages/2960916852/Central+SRE+Support+FAQs#I-have-high%2Fcritical-vulnerabilities-for-my-ECR-image%2C-and-its-blocking-my-builds.-What%E2%80%99s-going-on%3F).
+This option is effectively a deferral of fixing the vulnerability. **Assess the situation first**. If the CVE describes a scenario that aligns with how your project is used, then you should be working to fix it rather than defer it. or help on this, check out the following the steps outlined [here]().
 
 Below are some recommendations if you choose to exercise this option:
 
