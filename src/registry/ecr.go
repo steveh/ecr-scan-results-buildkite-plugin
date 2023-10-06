@@ -205,17 +205,17 @@ func FilterMinSeverity(minSeverity types.FindingSeverity) FindingFilter {
 
 func severityLevel(severity types.FindingSeverity) int {
 	switch severity {
-	case types.FindingSeverityInformational:
-		return 0
-	case types.FindingSeverityLow:
-		return 1
-	case types.FindingSeverityMedium:
-		return 2
-	case types.FindingSeverityHigh:
-		return 3
-	case types.FindingSeverityCritical:
-		return 4
 	case types.FindingSeverityUndefined:
+		return 0
+	case types.FindingSeverityInformational:
+		return 1
+	case types.FindingSeverityLow:
+		return 2
+	case types.FindingSeverityMedium:
+		return 3
+	case types.FindingSeverityHigh:
+		return 4
+	case types.FindingSeverityCritical:
 		return 5
 	default: // unknown severity
 		return -1
