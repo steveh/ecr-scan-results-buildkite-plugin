@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/kelseyhightower/envconfig"
 
 	"github.com/buildkite/ecrscanresults/src/buildkite"
@@ -27,6 +29,18 @@ type Config struct {
 	CriticalSeverityThreshold int32    `envconfig:"MAX_CRITICALS" split_words:"true"`
 	HighSeverityThreshold     int32    `envconfig:"MAX_HIGHS"     split_words:"true"`
 	IgnoredVulnerabilities    []string `envconfig:"IGNORE"`
+	MinSeverity               Severity `envconfig:"MIN_SEVERITY" default:"high" split_words:"true"`
+}
+
+type Severity types.FindingSeverity
+
+func (s *Severity) Decode(value string) error {
+	sev := types.FindingSeverity(strings.ToUpper(strings.TrimSpace(value)))
+	if allowedSevs := new(types.FindingSeverity).Values(); !slices.Contains(allowedSevs, sev) {
+		return fmt.Errorf("severity must be one of: %v", allowedSevs)
+	}
+	*s = Severity(sev)
+	return nil
 }
 
 func main() {
@@ -106,27 +120,41 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 
 	buildkite.Log("report ready, retrieving ...")
 
-	findings, err := scan.GetScanFindings(ctx, imageDigest, pluginConfig.IgnoredVulnerabilities)
+	allFindings, err := scan.GetScanFindings(ctx, imageDigest)
 	if err != nil {
 		return runtimeerrors.NonFatal("could not retrieve scan results", err)
 	}
 
-	buildkite.Logf("retrieved. %d findings in report.\n", len(findings.ImageScanFindings.Findings))
-	buildkite.Logf("ignored vulnerabilities (%d): %v\n", len(pluginConfig.IgnoredVulnerabilities), pluginConfig.IgnoredVulnerabilities)
+	buildkite.Logf("total findings (unfiltered): %d\n", len(allFindings.ImageScanFindings.Findings))
 
-	criticalFindings := findings.ImageScanFindings.FindingSeverityCounts["CRITICAL"]
-	highFindings := findings.ImageScanFindings.FindingSeverityCounts["HIGH"]
-	overThreshold :=
-		criticalFindings > pluginConfig.CriticalSeverityThreshold ||
-			highFindings > pluginConfig.HighSeverityThreshold
+	filteredFindings := registry.FilterFindings(*allFindings,
+		registry.FilterIgnoredNames(pluginConfig.IgnoredVulnerabilities),
+		registry.FilterMinSeverity(types.FindingSeverity(pluginConfig.MinSeverity)),
+	)
 
-	buildkite.Logf("Severity counts: critical=%d high=%d overThreshold=%v\n", criticalFindings, highFindings, overThreshold)
+	buildkite.Logf("total findings (filtered): %d\n", len(filteredFindings.ImageScanFindings.Findings))
+	buildkite.Logf("ignored vulnerabilities (%d): %v\n",
+		len(pluginConfig.IgnoredVulnerabilities),
+		pluginConfig.IgnoredVulnerabilities,
+	)
+
+	criticalFindingsCount := filteredFindings.ImageScanFindings.FindingSeverityCounts["CRITICAL"]
+	highFindingsCount := filteredFindings.ImageScanFindings.FindingSeverityCounts["HIGH"]
+	isOverThreshold :=
+		criticalFindingsCount > pluginConfig.CriticalSeverityThreshold ||
+			highFindingsCount > pluginConfig.HighSeverityThreshold
+
+	buildkite.Logf("Severity counts: critical=%d high=%d overThreshold=%v\n",
+		criticalFindingsCount,
+		highFindingsCount,
+		isOverThreshold,
+	)
 
 	buildkite.Log("Creating report annotation...")
 	annotationCtx := report.AnnotationContext{
 		Image:                     imageID,
 		ImageLabel:                pluginConfig.ImageLabel,
-		ScanFindings:              findings.ImageScanFindings,
+		ScanFindings:              filteredFindings.ImageScanFindings,
 		CriticalSeverityThreshold: pluginConfig.CriticalSeverityThreshold,
 		HighSeverityThreshold:     pluginConfig.HighSeverityThreshold,
 	}
@@ -138,9 +166,9 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 	buildkite.Log("done.")
 
 	annotationStyle := "info"
-	if overThreshold {
+	if isOverThreshold {
 		annotationStyle = "error"
-	} else if criticalFindings > 0 || highFindings > 0 {
+	} else if criticalFindingsCount > 0 || highFindingsCount > 0 {
 		annotationStyle = "warning"
 	}
 
@@ -164,7 +192,7 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 	buildkite.Log("done.")
 
 	// exceeding threshold is a fatal error
-	if overThreshold {
+	if isOverThreshold {
 		return errors.New("vulnerability threshold exceeded")
 	}
 
