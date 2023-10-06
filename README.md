@@ -92,13 +92,17 @@ reports harder to scan visually.
 
 When supplied, this is used to ignore specific CVEs.
 
+### `min-severity` (Optional, string)
+
+Include vulnerabilities with severity >= `min-severity` in the report. Defaults
+to "high". Note: "unknown" > "critical". 
+
 ## Requirements
 
 ### ECR Scan on Push
 
-This plugin assumes that the ECR repository has the `ScanOnPush` setting set (see
-the [AWS
-docs](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning.html)
+This plugin assumes that the ECR repository has the `ScanOnPush` setting set
+(see the [AWS docs](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning.html)
 for more information). By default this is not set on AWS ECR repositories.
 
 ### Agent role requires the ecr:DescribeImages permission

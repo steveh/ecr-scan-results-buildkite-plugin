@@ -117,7 +117,7 @@ func (r *RegistryScan) WaitForScanFindings(ctx context.Context, digestInfo Regis
 	})
 }
 
-func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo RegistryInfo, ignoreList []string) (*ScanFindings, error) {
+func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo RegistryInfo) (*ScanFindings, error) {
 	pg := ecr.NewDescribeImageScanFindingsPaginator(r.Client, &ecr.DescribeImageScanFindingsInput{
 		RegistryId:     &digestInfo.RegistryID,
 		RepositoryName: &digestInfo.Name,
@@ -150,26 +150,74 @@ func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo RegistryI
 		enhancedFindings = append(enhancedFindings, page.ImageScanFindings.EnhancedFindings...)
 	}
 
-	filteredFindings := []types.ImageScanFinding{}
-
-	for _, finding := range findings {
-		if !slices.Contains(ignoreList, *finding.Name) {
-			filteredFindings = append(filteredFindings, finding)
-		}
-	}
-
-	filteredEnhancedFindings := []types.EnhancedImageScanFinding{}
-
-	for _, finding := range enhancedFindings {
-		if !slices.Contains(ignoreList, *finding.Title) {
-			filteredEnhancedFindings = append(filteredEnhancedFindings, finding)
-		}
-	}
-
-	imageScanFindings.Findings = filteredFindings
-	imageScanFindings.EnhancedFindings = filteredEnhancedFindings
+	imageScanFindings.Findings = findings
+	imageScanFindings.EnhancedFindings = enhancedFindings
 
 	return &ScanFindings{
 		ImageScanFindings: imageScanFindings,
 	}, nil
+}
+
+// Filters
+
+type FindingFilter = func(types.ImageScanFinding) bool
+
+func FilterFindings(allFindings ScanFindings, filters ...FindingFilter) ScanFindings {
+	filteredFindings := ScanFindings{
+		ImageScanFindings: types.ImageScanFindings{
+			FindingSeverityCounts:        make(map[string]int32),
+			Findings:                     []types.ImageScanFinding{},
+			EnhancedFindings:             allFindings.EnhancedFindings, // we are not using enhanced findings just yet
+			ImageScanCompletedAt:         allFindings.ImageScanCompletedAt,
+			VulnerabilitySourceUpdatedAt: allFindings.VulnerabilitySourceUpdatedAt,
+		},
+	}
+	for _, finding := range allFindings.Findings {
+		keep := true
+
+		for _, filter := range filters {
+			if !filter(finding) {
+				keep = false
+				break
+			}
+		}
+
+		if keep {
+			filteredFindings.Findings = append(filteredFindings.Findings, finding)
+			filteredFindings.FindingSeverityCounts[string(finding.Severity)]++
+		}
+	}
+
+	return filteredFindings
+}
+
+func FilterIgnoredNames(namesToIgnore []string) FindingFilter {
+	return func(finding types.ImageScanFinding) bool {
+		return !slices.Contains(namesToIgnore, *finding.Name)
+	}
+}
+
+func FilterMinSeverity(minSeverity types.FindingSeverity) FindingFilter {
+	return func(finding types.ImageScanFinding) bool {
+		return severityLevel(finding.Severity) >= severityLevel(minSeverity)
+	}
+}
+
+func severityLevel(severity types.FindingSeverity) int {
+	switch severity {
+	case types.FindingSeverityUndefined:
+		return 0
+	case types.FindingSeverityInformational:
+		return 1
+	case types.FindingSeverityLow:
+		return 2
+	case types.FindingSeverityMedium:
+		return 3
+	case types.FindingSeverityHigh:
+		return 4
+	case types.FindingSeverityCritical:
+		return 5
+	default: // unknown severity
+		return -1
+	}
 }
