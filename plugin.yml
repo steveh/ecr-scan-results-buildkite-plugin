@@ -19,5 +19,7 @@ configuration:
       type: string
     ignore:
       type: array
+    help:
+      type: string
 
   additionalProperties: false

@@ -95,7 +95,11 @@ When supplied, this is used to ignore specific CVEs.
 ### `min-severity` (Optional, string)
 
 Include vulnerabilities with severity >= `min-severity` in the report. Defaults
-to "high". Note: "unknown" > "critical". 
+to "high". Note: "unknown" > "critical".
+
+### `help` (Optional, string)
+
+Help text to explain what to do with vulnerabilities found. Empty by default.
 
 ## Requirements
 

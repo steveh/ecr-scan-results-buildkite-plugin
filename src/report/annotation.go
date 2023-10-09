@@ -26,6 +26,7 @@ type AnnotationContext struct {
 	ScanFindings              types.ImageScanFindings
 	CriticalSeverityThreshold int32
 	HighSeverityThreshold     int32
+	Help                      string
 }
 
 func (c AnnotationContext) Render() ([]byte, error) {
