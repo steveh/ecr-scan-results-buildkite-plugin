@@ -61,3 +61,8 @@ there is no indentation: indented output can be rendered differently.
 <i>scan completed: <span title="{{ .ScanFindings.ImageScanCompletedAt }}">{{ .ScanFindings.ImageScanCompletedAt | timeAgo }}</span></i> |
 <i>source updated: <span title="{{ .ScanFindings.VulnerabilitySourceUpdatedAt }}">{{ .ScanFindings.VulnerabilitySourceUpdatedAt | timeAgo }}</span></i>
 </p>
+{{ if .Help }}
+<p class="p1">
+    {{ .Help }}
+</p>
+{{ end }}

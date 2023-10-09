@@ -149,6 +149,7 @@ func TestReportRender(t *testing.T) {
 		},
 		CriticalSeverityThreshold: 0,
 		HighSeverityThreshold:     0,
+		Help:                      "go here to see how to triage these",
 	}
 
 	result, err := data.Render()

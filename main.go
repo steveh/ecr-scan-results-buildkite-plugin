@@ -30,6 +30,7 @@ type Config struct {
 	HighSeverityThreshold     int32    `envconfig:"MAX_HIGHS"     split_words:"true"`
 	IgnoredVulnerabilities    []string `envconfig:"IGNORE"`
 	MinSeverity               Severity `envconfig:"MIN_SEVERITY" default:"high" split_words:"true"`
+	Help                      string   `envconfig:"HELP" default:""`
 }
 
 type Severity types.FindingSeverity
@@ -157,6 +158,7 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 		ScanFindings:              filteredFindings.ImageScanFindings,
 		CriticalSeverityThreshold: pluginConfig.CriticalSeverityThreshold,
 		HighSeverityThreshold:     pluginConfig.HighSeverityThreshold,
+		Help:                      pluginConfig.Help,
 	}
 
 	annotation, err := annotationCtx.Render()
