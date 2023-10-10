@@ -99,7 +99,7 @@ func (r *RegistryScan) WaitForScanFindings(ctx context.Context, digestInfo Regis
 	customRetryable := func(ctx context.Context, params *ecr.DescribeImageScanFindingsInput,
 		output *ecr.DescribeImageScanFindingsOutput, err error) (bool, error) {
 		if err != nil {
-			buildkite.Logf("error waiting for scan findings %v", err)
+			fmt.Printf("error waiting for scan findings %v\n", err)
 		}
 		return true, nil
 	}

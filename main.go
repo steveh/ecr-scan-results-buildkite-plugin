@@ -116,7 +116,7 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 	buildkite.LogGroupf(":ecr: Creating ECR scan results report for %s\n", imageID)
 	err = scan.WaitForScanFindings(ctx, imageDigest)
 	if err != nil {
-		return runtimeerrors.NonFatal("could not retrieve scan results", err)
+		return fmt.Errorf("could not retrieve scan results %w", err)
 	}
 
 	buildkite.Log("report ready, retrieving ...")
