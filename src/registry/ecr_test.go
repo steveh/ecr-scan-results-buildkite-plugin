@@ -1,9 +1,12 @@
 package registry
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -157,4 +160,23 @@ func TestFilterFindings(t *testing.T) {
 			assert.True(t, tt.wantFn(got))
 		})
 	}
+}
+
+type mockedDescribeImageScanFindings struct {
+	ECRAPI
+}
+
+func (m mockedDescribeImageScanFindings) DescribeImageScanFindings(ctx context.Context, params *ecr.DescribeImageScanFindingsInput, opts ...func(*ecr.Options)) (*ecr.DescribeImageScanFindingsOutput, error) {
+	return nil, &types.ReferencedImagesNotFoundException{}
+}
+
+func TestWaitForScanFindings(t *testing.T) {
+	r := &RegistryScan{
+		Client:          &mockedDescribeImageScanFindings{},
+		MinAttemptDelay: 1 * time.Millisecond,
+		MaxAttemptDelay: 2 * time.Millisecond,
+		MaxTotalDelay:   100 * time.Millisecond,
+	}
+	err := r.WaitForScanFindings(context.TODO(), RegistryInfo{})
+	assert.Error(t, err)
 }
