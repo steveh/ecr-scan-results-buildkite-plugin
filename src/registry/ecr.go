@@ -96,8 +96,15 @@ func (r *RegistryScan) GetLabelDigest(ctx context.Context, imageInfo RegistryInf
 }
 
 func (r *RegistryScan) WaitForScanFindings(ctx context.Context, digestInfo RegistryInfo) error {
-	waiter := ecr.NewImageScanCompleteWaiter(r.Client)
+	customRetryable := func(ctx context.Context, params *ecr.DescribeImageScanFindingsInput,
+		output *ecr.DescribeImageScanFindingsOutput, err error) (bool, error) {
+		if err != nil {
+			buildkite.Logf("error waiting for scan findings %v", err)
+		}
+		return true, nil
+	}
 
+	waiter := ecr.NewImageScanCompleteWaiter(r.Client)
 	// wait between attempts for between 3 and 15 secs (exponential backoff)
 	// wait for a maximum of 3 minutes
 	minAttemptDelay := 3 * time.Second
@@ -114,6 +121,7 @@ func (r *RegistryScan) WaitForScanFindings(ctx context.Context, digestInfo Regis
 		opts.LogWaitAttempts = true
 		opts.MinDelay = minAttemptDelay
 		opts.MaxDelay = maxAttemptDelay
+		opts.Retryable = customRetryable
 	})
 }
 
