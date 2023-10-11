@@ -29,6 +29,11 @@ type RegistryInfo struct {
 	Tag string
 }
 
+type ECRAPI interface {
+	DescribeImageScanFindings(context.Context, *ecr.DescribeImageScanFindingsInput, ...func(*ecr.Options)) (*ecr.DescribeImageScanFindingsOutput, error)
+	DescribeImages(context.Context, *ecr.DescribeImagesInput, ...func(*ecr.Options)) (*ecr.DescribeImagesOutput, error)
+}
+
 func (i RegistryInfo) String() string {
 	return fmt.Sprintf("%s.dkr.ecr.%s.amazonaws.com/%s:%s", i.RegistryID, i.Region, i.Name, i.Tag)
 }
@@ -60,14 +65,26 @@ func RegistryInfoFromURL(url string) (RegistryInfo, error) {
 }
 
 type RegistryScan struct {
-	Client *ecr.Client
+	Client          ECRAPI
+	MinAttemptDelay time.Duration
+	MaxAttemptDelay time.Duration
+	MaxTotalDelay   time.Duration
 }
 
 func NewRegistryScan(config aws.Config) (*RegistryScan, error) {
 	client := ecr.NewFromConfig(config)
 
+	// wait between attempts for between 3 and 15 secs (exponential backoff)
+	// wait for a maximum of 3 minutes
+	minAttemptDelay := 3 * time.Second
+	maxAttemptDelay := 15 * time.Second
+	maxTotalDelay := 3 * time.Minute
+
 	return &RegistryScan{
-		Client: client,
+		Client:          client,
+		MinAttemptDelay: minAttemptDelay,
+		MaxAttemptDelay: maxAttemptDelay,
+		MaxTotalDelay:   maxTotalDelay,
 	}, nil
 }
 
@@ -98,22 +115,30 @@ func (r *RegistryScan) GetLabelDigest(ctx context.Context, imageInfo RegistryInf
 func (r *RegistryScan) WaitForScanFindings(ctx context.Context, digestInfo RegistryInfo) error {
 	waiter := ecr.NewImageScanCompleteWaiter(r.Client)
 
-	// wait between attempts for between 3 and 15 secs (exponential backoff)
-	// wait for a maximum of 3 minutes
-	minAttemptDelay := 3 * time.Second
-	maxAttemptDelay := 15 * time.Second
-	maxTotalDelay := 3 * time.Minute
-
 	return waiter.Wait(ctx, &ecr.DescribeImageScanFindingsInput{
 		RegistryId:     &digestInfo.RegistryID,
 		RepositoryName: &digestInfo.Name,
 		ImageId: &types.ImageIdentifier{
 			ImageDigest: &digestInfo.Tag,
 		},
-	}, maxTotalDelay, func(opts *ecr.ImageScanCompleteWaiterOptions) {
+	}, r.MaxAttemptDelay, func(opts *ecr.ImageScanCompleteWaiterOptions) {
+		/*
+			We must copy this function outside the closure to avoid an infinite loop
+			If we copy it inside the closure the compiler will assign it to a pointer
+			to itself
+		*/
+		defaultRetryableFunc := opts.Retryable
+		customRetryable := func(ctx context.Context, params *ecr.DescribeImageScanFindingsInput,
+			output *ecr.DescribeImageScanFindingsOutput, err error) (bool, error) {
+			if err != nil {
+				fmt.Printf("error waiting for scan findings %v\n", err)
+			}
+			return defaultRetryableFunc(ctx, params, output, err)
+		}
 		opts.LogWaitAttempts = true
-		opts.MinDelay = minAttemptDelay
-		opts.MaxDelay = maxAttemptDelay
+		opts.MinDelay = r.MinAttemptDelay
+		opts.MaxDelay = r.MaxAttemptDelay
+		opts.Retryable = customRetryable
 	})
 }
 
