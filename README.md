@@ -92,6 +92,16 @@ reports harder to scan visually.
 
 When supplied, this is used to ignore specific CVEs.
 
+### `ignore-file` (Optional, string)
+
+Read a file with a list of vulnerabilities to ignore, in the format of:
+```
+Vulnerabilities:
+  - CVE-2023-12345
+```
+
+Defaults to `.buildkite/ignored_cves.yml`
+
 ### `min-severity` (Optional, string)
 
 Include vulnerabilities with severity >= `min-severity` in the report. Defaults
