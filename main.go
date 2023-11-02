@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/kelseyhightower/envconfig"
+	"gopkg.in/yaml.v3"
 
 	"github.com/buildkite/ecrscanresults/src/buildkite"
 	"github.com/buildkite/ecrscanresults/src/env"
@@ -24,16 +25,21 @@ import (
 const pluginEnvironmentPrefix = "BUILDKITE_PLUGIN_ECR_SCAN_RESULTS"
 
 type Config struct {
-	Repository                string   `envconfig:"IMAGE_NAME"    required:"true"    split_words:"true"`
-	ImageLabel                string   `envconfig:"IMAGE_LABEL"   split_words:"true"`
-	CriticalSeverityThreshold int32    `envconfig:"MAX_CRITICALS" split_words:"true"`
-	HighSeverityThreshold     int32    `envconfig:"MAX_HIGHS"     split_words:"true"`
-	IgnoredVulnerabilities    []string `envconfig:"IGNORE"`
-	MinSeverity               Severity `envconfig:"MIN_SEVERITY" default:"high" split_words:"true"`
-	Help                      string   `envconfig:"HELP" default:""`
+	Repository                 string   `envconfig:"IMAGE_NAME"    required:"true"    split_words:"true"`
+	ImageLabel                 string   `envconfig:"IMAGE_LABEL"   split_words:"true"`
+	CriticalSeverityThreshold  int32    `envconfig:"MAX_CRITICALS" split_words:"true"`
+	HighSeverityThreshold      int32    `envconfig:"MAX_HIGHS"     split_words:"true"`
+	IgnoredVulnerabilities     []string `envconfig:"IGNORE"`
+	IgnoredVulnerabilitiesFile string   `envconfig:"IGNORE_FILE" default:".buildkite/ignored_cves.yml"`
+	MinSeverity                Severity `envconfig:"MIN_SEVERITY" default:"high" split_words:"true"`
+	Help                       string   `envconfig:"HELP" default:""`
 }
 
 type Severity types.FindingSeverity
+
+type IgnoreList struct {
+	Vulnerabilities []string `yaml:"Vulnerabilities"`
+}
 
 func (s *Severity) Decode(value string) error {
 	sev := types.FindingSeverity(strings.ToUpper(strings.TrimSpace(value)))
@@ -45,29 +51,15 @@ func (s *Severity) Decode(value string) error {
 }
 
 func main() {
-	var pluginConfig Config
-	if err := envconfig.Process(pluginEnvironmentPrefix, &pluginConfig); err != nil {
-		buildkite.LogFailuref("plugin configuration error: %s\n", err.Error())
+	pluginConfig, err := parseConfig()
+	if err != nil {
+		buildkite.LogFailuref(err.Error())
 		os.Exit(1)
 	}
-	if pluginConfig.CriticalSeverityThreshold < 0 {
-		buildkite.LogFailuref("max-criticals must be greater than or equal to 0")
-		os.Exit(1)
-	}
-	if pluginConfig.HighSeverityThreshold < 0 {
-		buildkite.LogFailuref("max-highs must be greater than or equal to 0")
-		os.Exit(1)
-	}
-
-	if len(pluginConfig.IgnoredVulnerabilities) == 0 {
-		prefix := fmt.Sprintf("%s_%s_", pluginEnvironmentPrefix, "IGNORE")
-		pluginConfig.IgnoredVulnerabilities = env.ParseWithPrefix(prefix)
-	}
-
 	ctx := context.Background()
 	agent := buildkite.Agent{}
 
-	err := runCommand(ctx, pluginConfig, agent)
+	err = runCommand(ctx, *pluginConfig, agent)
 	if err != nil {
 		buildkite.LogFailuref("plugin execution failed: %s\n", err.Error())
 
@@ -84,6 +76,41 @@ func main() {
 			_ = agent.Annotate(ctx, annotation, "error", hash(pluginConfig.Repository))
 		}
 	}
+}
+
+func parseConfig() (*Config, error) {
+	var pluginConfig Config
+	if err := envconfig.Process(pluginEnvironmentPrefix, &pluginConfig); err != nil {
+
+		return nil, fmt.Errorf("plugin configuration error: %w", err)
+	}
+	if pluginConfig.CriticalSeverityThreshold < 0 {
+		return nil, errors.New("max-criticals must be greater than or equal to 0")
+	}
+	if pluginConfig.HighSeverityThreshold < 0 {
+		return nil, errors.New("max-highs must be greater than or equal to 0")
+	}
+
+	if len(pluginConfig.IgnoredVulnerabilities) == 0 {
+		prefix := fmt.Sprintf("%s_%s_", pluginEnvironmentPrefix, "IGNORE")
+		pluginConfig.IgnoredVulnerabilities = env.ParseWithPrefix(prefix)
+	}
+
+	ignoreFile, err := os.ReadFile(pluginConfig.IgnoredVulnerabilitiesFile)
+	if err != nil {
+		buildkite.Logf("Unable to read ignore file %s", err)
+	}
+	var ignoreList IgnoreList
+	err = yaml.Unmarshal(ignoreFile, &ignoreList)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse Ignore file: %w", err)
+	}
+
+	for _, v := range ignoreList.Vulnerabilities {
+		pluginConfig.IgnoredVulnerabilities = append(pluginConfig.IgnoredVulnerabilities, v)
+	}
+	pluginConfig.IgnoredVulnerabilities = slices.Compact(pluginConfig.IgnoredVulnerabilities)
+	return &pluginConfig, nil
 }
 
 func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent) error {
