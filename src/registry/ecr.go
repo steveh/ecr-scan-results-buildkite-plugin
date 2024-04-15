@@ -12,34 +12,77 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 )
 
-var registryImageExpr = regexp.MustCompile(`^(?P<registryId>[^.]+)\.dkr\.ecr\.(?P<region>[^.]+).amazonaws.com/(?P<repoName>[^:]+)(?::(?P<tag>.+))?$`)
+var registryImageExpr = regexp.MustCompile(`^(?P<registryId>[^.]+)\.dkr\.ecr\.(?P<region>[^.]+).amazonaws.com/(?P<repoName>[^:@]+)(?::(?P<tag>.+))?(?:@(?P<digest>.+))?$`)
 
 type ScanFindings struct {
 	types.ImageScanFindings
+	ImageScanStatus types.ImageScanStatus
 }
 
-type RegistryInfo struct {
+type ImageReference struct {
 	// RegistryID is the AWS ECR account ID of the source registry.
 	RegistryID string
 	// Region is the AWS region of the registry.
 	Region string
 	// Name is the ECR repository name.
 	Name string
-	// Tag is the image label or an image digest.
+	// Digest is the image digest segment of the image reference, often prefixed with sha256:.
+	Digest string
+	// Tag is the image label segment of the image reference
 	Tag string
 }
 
 type ECRAPI interface {
-	DescribeImageScanFindings(context.Context, *ecr.DescribeImageScanFindingsInput, ...func(*ecr.Options)) (*ecr.DescribeImageScanFindingsOutput, error)
-	DescribeImages(context.Context, *ecr.DescribeImagesInput, ...func(*ecr.Options)) (*ecr.DescribeImagesOutput, error)
+	DescribeImageScanFindings(ctx context.Context, input *ecr.DescribeImageScanFindingsInput, fn ...func(*ecr.Options)) (*ecr.DescribeImageScanFindingsOutput, error)
+	DescribeImages(ctx context.Context, input *ecr.DescribeImagesInput, fn ...func(*ecr.Options)) (*ecr.DescribeImagesOutput, error)
 }
 
-func (i RegistryInfo) String() string {
-	return fmt.Sprintf("%s.dkr.ecr.%s.amazonaws.com/%s:%s", i.RegistryID, i.Region, i.Name, i.Tag)
+// ID returns the known identifier for the image: this is the digest if present, otherwise the tag.
+func (i ImageReference) ID() string {
+	if i.Digest != "" {
+		return i.Digest
+	}
+	return i.Tag
 }
 
-func RegistryInfoFromURL(url string) (RegistryInfo, error) {
-	info := RegistryInfo{}
+func (i ImageReference) DisplayName() string {
+	return fmt.Sprintf("%s%s%s", i.Name, i.tagRef(), i.digestRef())
+}
+
+func (i ImageReference) String() string {
+	return fmt.Sprintf("%s.dkr.ecr.%s.amazonaws.com/%s%s%s", i.RegistryID, i.Region, i.Name, i.tagRef(), i.digestRef())
+}
+
+func (i ImageReference) tagRef() string {
+	if i.Tag == "" {
+		return ""
+	}
+
+	return ":" + i.Tag
+}
+
+func (i ImageReference) digestRef() string {
+	if i.Digest == "" {
+		return ""
+	}
+
+	return "@" + i.Digest
+}
+
+// WithDigest returns a copy of the image reference with the digest set to the
+// given value. The tag, if any, is cleared.
+func (i ImageReference) WithDigest(digest string) ImageReference {
+	ref := i
+	ref.Digest = digest
+	ref.Tag = ""
+
+	return ref
+}
+
+// ParseReferenceFromURL parses an image reference from a supplied ECR image
+// identifier.
+func ParseReferenceFromURL(url string) (ImageReference, error) {
+	info := ImageReference{}
 	names := registryImageExpr.SubexpNames()
 	match := registryImageExpr.FindStringSubmatch(url)
 	if match == nil {
@@ -56,6 +99,8 @@ func RegistryInfoFromURL(url string) (RegistryInfo, error) {
 			info.Region = value
 		case "repoName":
 			info.Name = value
+		case "digest":
+			info.Digest = value
 		case "tag":
 			info.Tag = value
 		}
@@ -88,7 +133,7 @@ func NewRegistryScan(config aws.Config) (*RegistryScan, error) {
 	}, nil
 }
 
-func (r *RegistryScan) GetLabelDigest(ctx context.Context, imageInfo RegistryInfo) (RegistryInfo, error) {
+func (r *RegistryScan) GetLabelDigest(ctx context.Context, imageInfo ImageReference) (ImageReference, error) {
 	out, err := r.Client.DescribeImages(ctx, &ecr.DescribeImagesInput{
 		RegistryId:     &imageInfo.RegistryID,
 		RepositoryName: &imageInfo.Name,
@@ -98,28 +143,30 @@ func (r *RegistryScan) GetLabelDigest(ctx context.Context, imageInfo RegistryInf
 			},
 		},
 	})
+
 	if err != nil {
-		return RegistryInfo{}, err
+		return ImageReference{}, err
 	}
 	if len(out.ImageDetails) == 0 {
-		return RegistryInfo{}, fmt.Errorf("no image found for image %s", imageInfo)
+		return ImageReference{}, fmt.Errorf("no image found for image %s", imageInfo)
 	}
 
+	imageDetail := out.ImageDetails[0]
+
 	// copy input and update tag from label to digest
-	digestInfo := imageInfo
-	digestInfo.Tag = *out.ImageDetails[0].ImageDigest
+	digestInfo := imageInfo.WithDigest(aws.ToString(imageDetail.ImageDigest))
 
 	return digestInfo, nil
 }
 
-func (r *RegistryScan) WaitForScanFindings(ctx context.Context, digestInfo RegistryInfo) error {
+func (r *RegistryScan) WaitForScanFindings(ctx context.Context, digestInfo ImageReference) error {
 	waiter := ecr.NewImageScanCompleteWaiter(r.Client)
 
-	return waiter.Wait(ctx, &ecr.DescribeImageScanFindingsInput{
+	err := waiter.Wait(ctx, &ecr.DescribeImageScanFindingsInput{
 		RegistryId:     &digestInfo.RegistryID,
 		RepositoryName: &digestInfo.Name,
 		ImageId: &types.ImageIdentifier{
-			ImageDigest: &digestInfo.Tag,
+			ImageDigest: &digestInfo.Digest,
 		},
 	}, r.MaxAttemptDelay, func(opts *ecr.ImageScanCompleteWaiterOptions) {
 		/*
@@ -140,14 +187,26 @@ func (r *RegistryScan) WaitForScanFindings(ctx context.Context, digestInfo Regis
 		opts.MaxDelay = r.MaxAttemptDelay
 		opts.Retryable = customRetryable
 	})
+
+	// It is not good style to compare the error string, but this is the only way
+	// to capture that the scan failed, but everything else is hunky dory. We
+	// return nil here so that the caller will gather the scan results, and
+	// communicate to the user the reason this image has no results. "FAILURE" is
+	// returned when the image is unsupported, for example, and we want to
+	// communicate this properly to the user.
+	if err != nil && err.Error() == "waiter state transitioned to Failure" {
+		return nil
+	}
+
+	return err
 }
 
-func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo RegistryInfo) (*ScanFindings, error) {
+func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo ImageReference) (*ScanFindings, error) {
 	pg := ecr.NewDescribeImageScanFindingsPaginator(r.Client, &ecr.DescribeImageScanFindingsInput{
 		RegistryId:     &digestInfo.RegistryID,
 		RepositoryName: &digestInfo.Name,
 		ImageId: &types.ImageIdentifier{
-			ImageDigest: &digestInfo.Tag,
+			ImageDigest: &digestInfo.Digest,
 		},
 	})
 
@@ -155,6 +214,7 @@ func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo RegistryI
 	enhancedFindings := []types.EnhancedImageScanFinding{}
 
 	imageScanFindings := types.ImageScanFindings{}
+	var lastStatus types.ImageScanStatus
 
 	for pg.HasMorePages() {
 		page, err := pg.NextPage(ctx)
@@ -173,6 +233,7 @@ func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo RegistryI
 
 		findings = append(findings, page.ImageScanFindings.Findings...)
 		enhancedFindings = append(enhancedFindings, page.ImageScanFindings.EnhancedFindings...)
+		lastStatus = *page.ImageScanStatus
 	}
 
 	imageScanFindings.Findings = findings
@@ -180,6 +241,7 @@ func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo RegistryI
 
 	return &ScanFindings{
 		ImageScanFindings: imageScanFindings,
+		ImageScanStatus:   lastStatus,
 	}, nil
 }
 
