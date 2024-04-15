@@ -88,6 +88,11 @@ func (r *RemoteRepository) ResolveImageReferences(imageReference ImageReference)
 			continue
 		}
 
+		// skip attestation manifests
+		if m.Annotations["vnd.docker.reference.type"] == "attestation-manifest" {
+			continue
+		}
+
 		ref := PlatformImageReference{
 			ImageReference: imageReference.WithDigest(m.Digest.String()),
 			Platform:       *m.Platform,
