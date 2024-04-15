@@ -9,8 +9,8 @@ metadata:
     - data-internal-use-only
     - users-internal
   annotations:
-    github.com/project-slug: cultureamp/ecr-scan-results-buildkite-plugin
-    github.com/team-slug: cultureamp/sre-foundations
+    github.com/project-slug: buildkite/ecr-scan-results-buildkite-plugin
+    github.com/team-slug: buildkite/sre-foundations
 spec:
   type: library
   owner: sre-foundations

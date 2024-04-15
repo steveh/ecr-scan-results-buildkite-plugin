@@ -58,7 +58,7 @@ steps:
   - command: "command which creates an image"
     # the docker-compose plugin may be used here instead of a command
     plugins:
-      - cultureamp/ecr-scan-results#v1.5.0:
+      - buildkite/ecr-scan-results#v1.5.0:
           image-name: "$BUILD_REPO:deploy-$BUILD_TAG"
 ```
 
@@ -71,9 +71,9 @@ steps:
     agents:
       queue: ${BUILD_AGENT}
     plugins:
-      - cultureamp/aws-assume-role:
+      - buildkite/aws-assume-role:
           role: ${BUILD_ROLE}
-      - cultureamp/ecr-scan-results#v1.5.0:
+      - buildkite/ecr-scan-results#v1.5.0:
           image-name: "$BUILD_REPO:deploy-$BUILD_TAG"
 ```
 
@@ -104,9 +104,9 @@ steps:
     agents:
       queue: ${BUILD_AGENT}
     plugins:
-      - cultureamp/aws-assume-role:
+      - buildkite/aws-assume-role:
           role: ${BUILD_ROLE}
-      - cultureamp/ecr-scan-results#v1.5.0:
+      - buildkite/ecr-scan-results#v1.5.0:
           image-name: "$BUILD_REPO:deploy-$BUILD_TAG"
           max-criticals: "1"
           max-highs: "10"
