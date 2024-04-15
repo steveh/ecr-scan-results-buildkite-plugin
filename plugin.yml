@@ -17,11 +17,4 @@ configuration:
       type: string
     image-label:
       type: string
-    ignore:
-      type: array
-    ignore-file:
-      type: string
-    help:
-      type: string
-
   additionalProperties: false

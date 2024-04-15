@@ -1,0 +1,7 @@
+finding.Summary{
+	Counts:          map[types.FindingSeverity]finding.SeverityCount{},
+	Details:         []finding.Detail{},
+	Ignored:         []finding.Detail{},
+	Platforms:       []v1.Platform{{OS: "default"}},
+	FailedPlatforms: []finding.PlatformScanFailure{},
+}

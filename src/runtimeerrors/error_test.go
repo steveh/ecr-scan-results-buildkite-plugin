@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/buildkite/ecrscanresults/runtimeerrors"
+	_ "github.com/hexops/autogold/v2"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/buildkite/ecrscanresults/src/runtimeerrors"
 )
 
 func TestIIsFatal(t *testing.T) {

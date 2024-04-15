@@ -1,4 +1,4 @@
-FROM golang:1.21-bookworm
+FROM golang:1.22-bookworm
 
 ARG TARGETARCH=amd64
 ARG GOLANGCI_LINT_VERSION=1.52.2

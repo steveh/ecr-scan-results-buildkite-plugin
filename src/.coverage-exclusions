@@ -1,0 +1,3 @@
+# packages exempt from coverage reporting
+github.com/buildkite/ecrscanresults
+github.com/buildkite/ecrscanresults/buildkite
