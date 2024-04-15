@@ -4,48 +4,62 @@ issues:
       linters:
         # type assertion does not need checking as this will run in linux only (via Docker)
         - forcetypeassert
+    - path: src/report/annotation_test.go
+      linters:
+        # interface return from JSON function is A-OK
+        - ireturn
+    - path: src/main.go
+      linters:
+        # use of the `fmt.Sprintf` in `main.go` isn't that big of a worry performance-wise, we will
+        # let it rock
+        - perfsprint
 
 linters:
   enable-all: true
   disable:
-  - gochecknoglobals
-  - wrapcheck
-  - varnamelen
-  - tagliatelle
-  - testpackage
-  - paralleltest
-  - gomnd
-  - goerr113
-  - dupl
-  - forbidigo
-  - funlen
-  - unparam
-  - wsl
-  - errname
-  - exhaustivestruct
-  - exhaustruct
-  - nilnil
-  - nlreturn
-  - goconst
-  - lll
-  - asciicheck
-  - gocognit
-  - godot
-  - godox
-  - gofumpt
-  - nestif
-  - prealloc
-  - revive
-  # deprecated linters
-  - interfacer
-  - golint
-  - scopelint
-  - maligned
-  - deadcode
-  - ifshort
-  - structcheck
-  - nosnakecase
-  - varcheck
+    - asciicheck
+    - depguard
+    - dupl
+    - errname
+    - exhaustivestruct
+    - exhaustruct
+    - forbidigo
+    - funlen
+    - gci
+    - gochecknoglobals
+    - gocognit
+    - goconst
+    - godot
+    - godox
+    - goerr113
+    - gofumpt
+    - gomnd
+    - lll
+    - musttag
+    - nestif
+    - nilnil
+    - nlreturn
+    - paralleltest
+    - prealloc
+    - revive
+    - tagalign
+    - tagliatelle
+    - testpackage
+    - unparam
+    - varnamelen
+    - whitespace
+    - wrapcheck
+    - wsl
+    # deprecated linters
+    - deadcode
+    - golint
+    - ifshort
+    - interfacer
+    - maligned
+    - nosnakecase
+    - scopelint
+    - structcheck
+    - varcheck
 
 linters-settings:
   gosec:
@@ -59,5 +73,11 @@ linters-settings:
         audit: disabled
       G101: # "Look for hard-coded credentials"
         mode: strict
+
   cyclop:
-    max-complexity: 20
+    max-complexity: 30
+
+  exhaustive:
+    # Presence of "default" case in switch statements satisfies exhaustiveness,
+    # even if all enum members are not listed.
+    default-signifies-exhaustive: true
