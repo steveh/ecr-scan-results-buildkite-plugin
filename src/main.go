@@ -30,6 +30,7 @@ type Config struct {
 	CriticalSeverityThreshold int32                 `envconfig:"MAX_CRITICALS" split_words:"true"`
 	HighSeverityThreshold     int32                 `envconfig:"MAX_HIGHS" split_words:"true"`
 	MinSeverity               types.FindingSeverity `envconfig:"MIN_SEVERITY" default:"high" split_words:"true"`
+	Help                      string                `envconfig:"HELP" default:""`
 }
 
 func main() {
@@ -162,6 +163,7 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 		FindingSummary:            findingSummary,
 		CriticalSeverityThreshold: pluginConfig.CriticalSeverityThreshold,
 		HighSeverityThreshold:     pluginConfig.HighSeverityThreshold,
+		Help:                      pluginConfig.Help,
 	}
 
 	annotation, err := annotationCtx.Render()

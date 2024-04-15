@@ -128,3 +128,8 @@ be wrapped in <p> tag by the Markdown renderer in Buildkite.
 <i>scan completed: <span title="{{ .FindingSummary.ImageScanCompletedAt }}">{{ .FindingSummary.ImageScanCompletedAt | timeAgo }}</span></i> |
 <i>source updated: <span title="{{ .FindingSummary.VulnerabilitySourceUpdatedAt }}">{{ .FindingSummary.VulnerabilitySourceUpdatedAt | timeAgo }}</span></i>
 </p>
+{{ if .Help }}
+<p class="p1">
+    {{ .Help }}
+</p>
+{{ end }}

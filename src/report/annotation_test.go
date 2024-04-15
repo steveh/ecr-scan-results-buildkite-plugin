@@ -286,6 +286,42 @@ func TestReports(t *testing.T) {
 				FindingSummary: fromJSON[finding.Summary](t, summaryMultiplePlatforms),
 			},
 		},
+		{
+			name: "help",
+			data: report.AnnotationContext{
+				Image: registry.ImageReference{
+					RegistryID: "0123456789",
+					Region:     "us-west-2",
+					Name:       "test-repo",
+					Digest:     "digest-value",
+				},
+				ImageLabel: "label of image",
+				FindingSummary: finding.Summary{
+					Counts: map[types.FindingSeverity]finding.SeverityCount{
+						"HIGH":              {Included: 1},
+						"AA-BOGUS-SEVERITY": {Included: 1},
+						"CRITICAL":          {Included: 1},
+					},
+					Details: []finding.Detail{
+						{
+							Name:           "CVE-2019-5300",
+							Description:    "Another vulnerability.",
+							URI:            "http://people.ubuntu.com/~ubuntu-security/cve/CVE-2019-5300",
+							Severity:       "AA-BOGUS-SEVERITY",
+							PackageName:    "5300-package",
+							PackageVersion: "5300-version",
+							CVSS2: finding.NewCVSS2Score(
+								"10.0",
+								"AV:L/AC:L/Au:N/C:P/I:P/A:P",
+							),
+						},
+					},
+				},
+				CriticalSeverityThreshold: 0,
+				HighSeverityThreshold:     0,
+				Help:                      "go here to see how to triage these",
+			},
+		},
 	}
 
 	for _, c := range cases {

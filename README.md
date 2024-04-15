@@ -157,6 +157,10 @@ reports harder to scan visually.
 Include vulnerabilities with severity >= `min-severity` in the report. Defaults
 to "high". Note: "unknown" > "critical".
 
+### `help` (Optional, string)
+
+Help text to explain what to do with vulnerabilities found. Empty by default.
+
 ## Requirements
 
 ### ECR Basic scanning only
