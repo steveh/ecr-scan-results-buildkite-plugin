@@ -9,7 +9,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
-	"github.com/buildkite/ecrscanresults/src/findingconfig"
 	"github.com/buildkite/ecrscanresults/src/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/shopspring/decimal"
@@ -36,8 +35,6 @@ type Detail struct {
 	PackageVersion string
 	CVSS2          CVSSScore
 	CVSS3          CVSSScore
-
-	Ignore *findingconfig.Ignore
 
 	// Platforms is the set of OS and architecture combinations that the finding
 	// was reported for. This may be nil if this finding is for a single image.
@@ -71,9 +68,6 @@ func NewCVSS3Score(score string, vector string) CVSSScore {
 type SeverityCount struct {
 	// Included is the number of findings that count towards the threshold for this severity.
 	Included int32
-
-	// Ignored is the number of findings that were ignored for the purposes of the threshold.
-	Ignored int32
 }
 
 type PlatformScanFailure struct {
@@ -86,9 +80,6 @@ type Summary struct {
 	Counts map[types.FindingSeverity]SeverityCount
 
 	Details []Detail
-
-	// the set of finding IDs that have been ignored by configuration
-	Ignored []Detail
 
 	// The time of the last completed image scan.
 	ImageScanCompletedAt *time.Time
@@ -110,7 +101,6 @@ func newSummary() Summary {
 	return Summary{
 		Counts:          map[types.FindingSeverity]SeverityCount{},
 		Details:         []Detail{},
-		Ignored:         []Detail{},
 		Platforms:       []v1.Platform{},
 		FailedPlatforms: []PlatformScanFailure{},
 	}
@@ -174,28 +164,18 @@ func (s *Summary) addDetail(d Detail) {
 	s.updateCount(d.Severity, SeverityCount{Included: 1})
 }
 
-func (s *Summary) addIgnored(d Detail) {
-	s.Ignored = append(s.Ignored, d)
-	s.updateCount(d.Severity, SeverityCount{Ignored: 1})
-}
-
 func (s *Summary) updateCount(severity types.FindingSeverity, updateBy SeverityCount) {
 	counts := s.Counts[severity]
 
-	counts.Ignored += updateBy.Ignored
 	counts.Included += updateBy.Included
 
 	s.Counts[severity] = counts
 }
 
-func (s *Summary) updateCountByStatus(severity types.FindingSeverity, ignored bool) {
+func (s *Summary) updateCountByStatus(severity types.FindingSeverity) {
 	count := SeverityCount{}
 
-	if ignored {
-		count.Ignored = 1
-	} else {
-		count.Included = 1
-	}
+	count.Included = 1
 
 	s.updateCount(severity, count)
 }
@@ -220,7 +200,6 @@ func mergeSingle(merged, other Summary) Summary {
 	// merge findings from the other Summary into this one
 
 	merged.Details = mergeDetails(merged, merged.Details, other.Details)
-	merged.Ignored = mergeDetails(merged, merged.Ignored, other.Ignored)
 
 	merged.Platforms = append(merged.Platforms, other.Platforms...)
 	merged.FailedPlatforms = append(merged.FailedPlatforms, other.FailedPlatforms...)
@@ -247,7 +226,7 @@ func mergeDetails(summary Summary, merged, other []Detail) []Detail {
 		} else {
 			// insert unique finding into sorted list and update counts
 			merged = slices.Insert(merged, insertIdx, d)
-			summary.updateCountByStatus(d.Severity, d.Ignore != nil)
+			summary.updateCountByStatus(d.Severity)
 		}
 	}
 
@@ -256,7 +235,7 @@ func mergeDetails(summary Summary, merged, other []Detail) []Detail {
 
 // Summarize takes a set of findings from ECR and converts them into a summary
 // ready for rendering.
-func Summarize(results *registry.ScanFindings, platform v1.Platform, ignoreConfig []findingconfig.Ignore) Summary {
+func Summarize(results *registry.ScanFindings, platform v1.Platform) Summary {
 	summary := newSummary()
 
 	summary.Platforms = []v1.Platform{platform}
@@ -279,16 +258,7 @@ func Summarize(results *registry.ScanFindings, platform v1.Platform, ignoreConfi
 		// for merging with other summaries).
 		detail.Platforms = summary.Platforms
 
-		index := slices.IndexFunc(ignoreConfig, func(ignore findingconfig.Ignore) bool {
-			return ignore.ID == detail.Name
-		})
-
-		if index >= 0 {
-			detail.Ignore = &ignoreConfig[index]
-			summary.addIgnored(detail)
-		} else {
-			summary.addDetail(detail)
-		}
+		summary.addDetail(detail)
 	}
 
 	return summary

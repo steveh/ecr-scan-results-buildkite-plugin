@@ -53,7 +53,6 @@ finding.Summary{
 			Platforms: []v1.Platform{{OS: "other2"}},
 		},
 	},
-	Ignored: []finding.Detail{},
 	ImageScanCompletedAt: valast.Ptr(time.Date(2010,
 		1,
 		1,

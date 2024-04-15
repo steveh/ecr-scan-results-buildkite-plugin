@@ -16,7 +16,6 @@ import (
 	"github.com/buildkite/ecrscanresults/src/buildkite"
 	"github.com/buildkite/ecrscanresults/src/env"
 	"github.com/buildkite/ecrscanresults/src/finding"
-	"github.com/buildkite/ecrscanresults/src/findingconfig"
 	"github.com/buildkite/ecrscanresults/src/registry"
 	"github.com/buildkite/ecrscanresults/src/report"
 	"github.com/buildkite/ecrscanresults/src/runtimeerrors"
@@ -117,22 +116,6 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 	buildkite.Logf("Scan results report requested for %s\n", pluginConfig.Repository)
 	buildkite.Logf("Thresholds: criticals %d highs %d\n", pluginConfig.CriticalSeverityThreshold, pluginConfig.HighSeverityThreshold)
 
-	buildkite.Logf("Loading finding ignore files ...\n")
-
-	ignoreConfig, err := findingconfig.LoadFromDefaultLocations(findingconfig.DefaultSystemClock())
-	if err != nil {
-		return runtimeerrors.NonFatal("could not load finding ignore configuration", err)
-	}
-
-	if len(ignoreConfig) == 0 {
-		buildkite.Logf("No ignore rules loaded, or all rules have expired.\n")
-	} else {
-		buildkite.Logf("Loaded %d ignore rules:\n", len(ignoreConfig))
-		for _, ignore := range ignoreConfig {
-			buildkite.Logf("  - %s\n", ignore)
-		}
-	}
-
 	imageID, err := registry.ParseReferenceFromURL(pluginConfig.Repository)
 	if err != nil {
 		return err
@@ -177,7 +160,7 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 	// now download all the results and create a merged report
 	buildkite.Logf("Attempting to retrieve scan results for %d image(s)", len(imageDigests))
 	summaries, err := iter.MapErr(imageDigests, func(image *registry.PlatformImageReference) (finding.Summary, error) {
-		return getImageScanSummary(ctx, scan, *image, ignoreConfig)
+		return getImageScanSummary(ctx, scan, *image)
 	})
 	if err != nil {
 		return fmt.Errorf("could not retrieve scan results %w", err)
@@ -278,7 +261,7 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 // getImageScanSummary retrieves the scan results for the given image digest and
 // returns the initial summary for the image. This function may be called in
 // parallel for multiple images.
-func getImageScanSummary(ctx context.Context, scan *registry.RegistryScan, imageDigest registry.PlatformImageReference, ignoreConfig []findingconfig.Ignore) (finding.Summary, error) {
+func getImageScanSummary(ctx context.Context, scan *registry.RegistryScan, imageDigest registry.PlatformImageReference) (finding.Summary, error) {
 	err := scan.WaitForScanFindings(ctx, imageDigest.ImageReference)
 	if err != nil {
 		return finding.Summary{}, err
@@ -295,7 +278,7 @@ func getImageScanSummary(ctx context.Context, scan *registry.RegistryScan, image
 
 	buildkite.Logf("retrieved. %d findings in report.\n", numFindings)
 
-	findingSummary := finding.Summarize(findings, imageDigest.Platform, ignoreConfig)
+	findingSummary := finding.Summarize(findings, imageDigest.Platform)
 
 	return findingSummary, nil
 }

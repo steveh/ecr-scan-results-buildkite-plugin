@@ -12,7 +12,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/buildkite/ecrscanresults/src/finding"
-	"github.com/buildkite/ecrscanresults/src/findingconfig"
 	"github.com/buildkite/ecrscanresults/src/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/justincampbell/timeago"
@@ -38,7 +37,6 @@ func (c AnnotationContext) Render() ([]byte, error) {
 		New("annotation").
 		Funcs(template.FuncMap{
 			"hasKnownPlatform": hasKnownPlatform,
-			"hasUntilValue":    hasUntilValue,
 			"titleCase": func(s string) string {
 				c := cases.Title(language.English)
 				return c.String(s)
@@ -187,10 +185,6 @@ func compareCVSSScore(a, b finding.CVSSScore) int {
 	default:
 		return a.Score.Cmp(*b.Score)
 	}
-}
-
-func hasUntilValue(until findingconfig.UntilTime) bool {
-	return time.Time(until).After(time.Time(findingconfig.UntilTime{}))
 }
 
 func asString(input any) (string, error) {

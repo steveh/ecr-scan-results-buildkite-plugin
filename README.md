@@ -77,21 +77,6 @@ steps:
           image-name: "$BUILD_REPO:deploy-$BUILD_TAG"
 ```
 
-To [ignore specific vulnerabilities][ignore-findings], create a file name
-`.ecr-scan-results-ignore.yaml` in the repository root and add entries there.
-See the [documentation][ignore-findings] for more information.
-
-```yml
-# .ecr-scan-results-ignore.yaml contents
-ignores:
-  - id: CVE-2023-100
-  - id: CVE-2023-200
-    until: 2023-12-31
-    reason: |
-      Allowing 2 weeks for [base image](https://google.com) to update. Markdown is allowed!
-  - id: CVE-2023-300
-```
-
 If you want the pipeline to pass with some vulnerabilities then set
 `max-criticals` and `max-highs` like below. This pipeline will pass if there is
 one critical vulenerability but fail if there are two. Similarly it will fail if
@@ -262,40 +247,3 @@ level for a service if a non-zero threshold is desired, and consider making use
 of the [ignore file][ignore-findings] configuration to avoid temporary
 blockages. Using an ignore entry with an expiry is strongly recommended over
 increasing the threshold.
-
-### What should I think about when ignoring a finding for a period of time?
-
-Consider the following:
-
-- Follow the link to read the details of the CVE. Does it impact a component
-  that is directly (or indirectly) used by your application?
-- Reference the CVSS score associated with the vulnerability and look carefully
-  at the vector via the link. The vector will help inform about how this
-  vulnerability can affect your system.
-- Consider using the CVSS calculator (reached via the vector link) to fill out
-  the "Environmental" part of the score. The environmental score helps judge the
-  risks posed in the context of your application deployment environment. This is
-  likely adjust the base score and assist in your decision making.
-- Is a patch or update already available?
-- Is this update likely to be made available in an update to the current base
-  image, or does it exist in a later version of the base image?
-
-Possible actions:
-
-1. Update the base image that incorporates the fix. This may be the simplest
-   option.
-2. Remove the dependency from the image, or choose a different base image
-   without the issue.
-3. Add an ignore with an expiry to allow for an update to be published within a
-   period of time. This is only valid if your corporate standards allow it, and
-   there is a plan to follow up on this issue in the given time frame.
-4. Update the image definition to update the package with the vulnerability.
-   This can negatively impact image size, and create a future maintenance issue
-   if not done carefully. Take care to keep the number of packages updated
-   small, and avoid adding hard-coded versions unless a process exists to keep
-   them up-to-date.
-5. Ignore the finding indefinitely. This will generally only be valid if
-   dependency both cannot be removed and is not used in a vulnerable fashion.
-   Your working environment may require special exceptions for this.
-
-[ignore-findings]: ./docs/ignore-findings.md

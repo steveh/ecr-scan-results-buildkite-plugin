@@ -9,7 +9,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/buildkite/ecrscanresults/src/finding"
-	"github.com/buildkite/ecrscanresults/src/findingconfig"
 	"github.com/buildkite/ecrscanresults/src/registry"
 	"github.com/buildkite/ecrscanresults/src/report"
 	"github.com/hexops/autogold/v2"
@@ -128,8 +127,8 @@ func TestReports(t *testing.T) {
 				FindingSummary: finding.Summary{
 					Counts: map[types.FindingSeverity]finding.SeverityCount{
 						"HIGH":     {Included: 1},
-						"CRITICAL": {Included: 1, Ignored: 1},
-						"LOW":      {Included: 0, Ignored: 1},
+						"CRITICAL": {Included: 2},
+						"LOW":      {Included: 0},
 					},
 					Details: []finding.Detail{
 						{
@@ -155,44 +154,6 @@ func TestReports(t *testing.T) {
 								"10.0",
 								"AV:L/AC:L/Au:N/C:P/I:P/A:P",
 							),
-						},
-					},
-					Ignored: []finding.Detail{
-						{
-							Name:           "CVE-2023-100",
-							Description:    "A vulnerability present in some software but isn't that bad.",
-							URI:            "http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-100",
-							Severity:       "LOW",
-							PackageName:    "100-package",
-							PackageVersion: "100-version",
-							CVSS2: finding.NewCVSS2Score(
-								"4.0",
-								"AV:L/AC:L/Au:N/C:P/I:P/A:P",
-							),
-							Ignore: &findingconfig.Ignore{
-								ID: "CVE-2023-100",
-							},
-						},
-						{
-							Name:           "CVE-2019-5300",
-							Description:    "Another vulnerability.",
-							URI:            "http://people.ubuntu.com/~ubuntu-security/cve/CVE-2019-5300",
-							Severity:       "CRITICAL",
-							PackageName:    "5300-package",
-							PackageVersion: "5300-version",
-							CVSS2: finding.NewCVSS2Score(
-								"10.0",
-								"AV:L/AC:L/Au:N/C:P/I:P/A:P",
-							),
-							CVSS3: finding.NewCVSS3Score(
-								"9",
-								"AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
-							),
-							Ignore: &findingconfig.Ignore{
-								ID:     "CVE-2019-5300",
-								Until:  findingconfig.MustParseUntil("2023-12-31"),
-								Reason: "Ignored to give the base image a chance to be updated",
-							},
 						},
 					},
 				},

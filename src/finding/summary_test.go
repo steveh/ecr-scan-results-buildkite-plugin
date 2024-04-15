@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/buildkite/ecrscanresults/src/finding"
-	"github.com/buildkite/ecrscanresults/src/findingconfig"
 	"github.com/buildkite/ecrscanresults/src/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/hexops/autogold/v2"
@@ -18,10 +17,9 @@ var defaultPlatform = v1.Platform{OS: "default"}
 
 func TestSummarize(t *testing.T) {
 	cases := []struct {
-		name    string
-		ignores []findingconfig.Ignore
-		data    *registry.ScanFindings
-		status  finding.SummaryStatus
+		name   string
+		data   *registry.ScanFindings
+		status finding.SummaryStatus
 	}{
 		{
 			name: "no vulnerabilities",
@@ -105,17 +103,13 @@ func TestSummarize(t *testing.T) {
 					},
 				},
 			},
-			ignores: []findingconfig.Ignore{
-				i("CVE-2019-5189"), // part of the summary
-				i("CVE-2019-6000"), // not part of it
-			},
 			status: finding.StatusOk,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			summary := finding.Summarize(c.data, defaultPlatform, c.ignores)
+			summary := finding.Summarize(c.data, defaultPlatform)
 
 			assert.Equal(t, c.status, summary.Status(1, 2))
 			autogold.ExpectFile(t, summary)
@@ -259,10 +253,6 @@ func fscore3(name string, severity types.FindingSeverity, score string, vector s
 			{Key: aws.String("CVSS3_VECTOR"), Value: &vector},
 		},
 	}
-}
-
-func i(id string) findingconfig.Ignore {
-	return findingconfig.Ignore{ID: id}
 }
 
 func tm(yyyy int, mm time.Month, dd int) *time.Time {

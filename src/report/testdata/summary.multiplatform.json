@@ -1,8 +1,7 @@
 {
   "Counts": {
     "MEDIUM": {
-      "Included": 1,
-      "Ignored": 0
+      "Included": 1
     }
   },
   "Details": [
@@ -36,7 +35,6 @@
       ]
     }
   ],
-  "Ignored": [],
   "ImageScanCompletedAt": null,
   "VulnerabilitySourceUpdatedAt": null,
   "Platforms": [
