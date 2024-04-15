@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"slices"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -210,11 +209,10 @@ func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo ImageRefe
 		},
 	})
 
-	findings := []types.ImageScanFinding{}
-	enhancedFindings := []types.EnhancedImageScanFinding{}
-
-	imageScanFindings := types.ImageScanFindings{}
-	var lastStatus types.ImageScanStatus
+	var findings []types.ImageScanFinding
+	var enhancedFindings []types.EnhancedImageScanFinding
+	var latestPageFindings types.ImageScanFindings
+	var latestPageStatus types.ImageScanStatus
 
 	for pg.HasMorePages() {
 		page, err := pg.NextPage(ctx)
@@ -227,84 +225,23 @@ func (r *RegistryScan) GetScanFindings(ctx context.Context, digestInfo ImageRefe
 			break
 		}
 
-		if !pg.HasMorePages() {
-			imageScanFindings = *page.ImageScanFindings
+		if page.ImageScanFindings != nil {
+			latestPageFindings = *page.ImageScanFindings
+
+			findings = append(findings, latestPageFindings.Findings...)
+			enhancedFindings = append(enhancedFindings, latestPageFindings.EnhancedFindings...)
 		}
 
-		findings = append(findings, page.ImageScanFindings.Findings...)
-		enhancedFindings = append(enhancedFindings, page.ImageScanFindings.EnhancedFindings...)
-		lastStatus = *page.ImageScanStatus
+		if page.ImageScanStatus != nil {
+			latestPageStatus = *page.ImageScanStatus
+		}
 	}
 
-	imageScanFindings.Findings = findings
-	imageScanFindings.EnhancedFindings = enhancedFindings
+	latestPageFindings.Findings = findings
+	latestPageFindings.EnhancedFindings = enhancedFindings
 
 	return &ScanFindings{
-		ImageScanFindings: imageScanFindings,
-		ImageScanStatus:   lastStatus,
+		ImageScanFindings: latestPageFindings,
+		ImageScanStatus:   latestPageStatus,
 	}, nil
-}
-
-// Filters
-
-type FindingFilter = func(types.ImageScanFinding) bool
-
-func FilterFindings(allFindings ScanFindings, filters ...FindingFilter) ScanFindings {
-	filteredFindings := ScanFindings{
-		ImageScanFindings: types.ImageScanFindings{
-			FindingSeverityCounts:        make(map[string]int32),
-			Findings:                     []types.ImageScanFinding{},
-			EnhancedFindings:             allFindings.EnhancedFindings, // we are not using enhanced findings just yet
-			ImageScanCompletedAt:         allFindings.ImageScanCompletedAt,
-			VulnerabilitySourceUpdatedAt: allFindings.VulnerabilitySourceUpdatedAt,
-		},
-	}
-	for _, finding := range allFindings.Findings {
-		keep := true
-
-		for _, filter := range filters {
-			if !filter(finding) {
-				keep = false
-				break
-			}
-		}
-
-		if keep {
-			filteredFindings.Findings = append(filteredFindings.Findings, finding)
-			filteredFindings.FindingSeverityCounts[string(finding.Severity)]++
-		}
-	}
-
-	return filteredFindings
-}
-
-func FilterIgnoredNames(namesToIgnore []string) FindingFilter {
-	return func(finding types.ImageScanFinding) bool {
-		return !slices.Contains(namesToIgnore, *finding.Name)
-	}
-}
-
-func FilterMinSeverity(minSeverity types.FindingSeverity) FindingFilter {
-	return func(finding types.ImageScanFinding) bool {
-		return severityLevel(finding.Severity) >= severityLevel(minSeverity)
-	}
-}
-
-func severityLevel(severity types.FindingSeverity) int {
-	switch severity {
-	case types.FindingSeverityUndefined:
-		return 0
-	case types.FindingSeverityInformational:
-		return 1
-	case types.FindingSeverityLow:
-		return 2
-	case types.FindingSeverityMedium:
-		return 3
-	case types.FindingSeverityHigh:
-		return 4
-	case types.FindingSeverityCritical:
-		return 5
-	default: // unknown severity
-		return -1
-	}
 }

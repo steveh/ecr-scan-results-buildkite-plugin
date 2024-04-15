@@ -167,28 +167,24 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 	}
 
 	// merge the set of returned summaries into a single one ready for reporting.
-	findingSummary := finding.MergeSummaries(summaries)
+	unfilteredSummary := finding.MergeSummaries(summaries)
 
-	allFindings, err := scan.GetScanFindings(ctx, imageDigest)
-	if err != nil {
-		return runtimeerrors.NonFatal("could not retrieve scan results", err)
-	}
+	buildkite.Logf("total findings (unfiltered): %d\n", len(unfilteredSummary.Details))
 
-	buildkite.Logf("total findings (unfiltered): %d\n", len(allFindings.ImageScanFindings.Findings))
-
-	filteredFindings := registry.FilterFindings(*allFindings,
-		registry.FilterIgnoredNames(pluginConfig.IgnoredVulnerabilities),
-		registry.FilterMinSeverity(types.FindingSeverity(pluginConfig.MinSeverity)),
+	filteredSummary := finding.FilterSummary(unfilteredSummary,
+		finding.FilterIgnoredNames(pluginConfig.IgnoredVulnerabilities),
+		finding.FilterMinSeverity(types.FindingSeverity(pluginConfig.MinSeverity)),
 	)
 
-	buildkite.Logf("total findings (filtered): %d\n", len(filteredFindings.ImageScanFindings.Findings))
+	buildkite.Logf("total findings (filtered): %d\n", len(filteredSummary.Details))
 	buildkite.Logf("ignored vulnerabilities (%d): %v\n",
 		len(pluginConfig.IgnoredVulnerabilities),
 		pluginConfig.IgnoredVulnerabilities,
 	)
 
-	criticalFindingsCount := filteredFindings.ImageScanFindings.FindingSeverityCounts["CRITICAL"]
-	highFindingsCount := filteredFindings.ImageScanFindings.FindingSeverityCounts["HIGH"]
+	criticalFindingsCount := filteredSummary.Counts["CRITICAL"].Included
+	highFindingsCount := filteredSummary.Counts["HIGH"].Included
+
 	isOverThreshold :=
 		criticalFindingsCount > pluginConfig.CriticalSeverityThreshold ||
 			highFindingsCount > pluginConfig.HighSeverityThreshold
@@ -199,7 +195,7 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 		isOverThreshold,
 	)
 
-	status := findingSummary.Status(pluginConfig.CriticalSeverityThreshold, pluginConfig.HighSeverityThreshold)
+	status := filteredSummary.Status(pluginConfig.CriticalSeverityThreshold, pluginConfig.HighSeverityThreshold)
 	if status == finding.StatusAllPlatformsFailed {
 		// Failing on all platforms is terminating but not fatal to the build:
 		// builds are only blocked if thresholds are exceeded. When only some
@@ -212,7 +208,7 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 	annotationCtx := report.AnnotationContext{
 		Image:                     imageID,
 		ImageLabel:                pluginConfig.ImageLabel,
-		FindingSummary:            findingSummary,
+		FindingSummary:            filteredSummary,
 		CriticalSeverityThreshold: pluginConfig.CriticalSeverityThreshold,
 		HighSeverityThreshold:     pluginConfig.HighSeverityThreshold,
 		Help:                      pluginConfig.Help,

@@ -6,3 +6,4 @@
 src/ecrscanresults
 src/*.html
 ecrscanresults
+result.*.html
