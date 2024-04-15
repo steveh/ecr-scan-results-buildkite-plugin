@@ -1,19 +1,28 @@
-.PHONY: mod
-mod:
-	go mod download
+all: clean lint test ecrscanresults
+
+ecrscanresults:
+	CGO_ENABLED=0 go build -o ecrscanresults -trimpath -mod=readonly -ldflags="-s -w -X main.version=$(shell git describe --always)" .
+
+.PHONY: clean
+clean:
+	@rm -f ecrscanresults
+	@rm -rf dist
+
+.PHONY: lint
+lint:
+	go vet ./...
 
 .PHONY: test
-test: mod
-	go test -race -cover ./...
+test:
+	go test ./...
 
-.PHONY: test-ci
-test-ci: mod
-	mkdir artifacts
-	go test ./... -covermode=atomic -coverprofile=artifacts/count.out
-	go tool cover -func=artifacts/count.out | tee artifacts/coverage.out
+cover.out:
+	go test ./... -coverprofile=cover.out
 
-# ensures that `go mod tidy` has been run after any dependency changes
-.PHONY: ensure-deps
-ensure-deps: mod
-	@go mod tidy
-	@git diff --exit-code
+.PHONY: coverage
+coverage: cover.out
+	go tool cover -html=cover.out
+
+.PHONY: tidy
+tidy:
+	go mod tidy

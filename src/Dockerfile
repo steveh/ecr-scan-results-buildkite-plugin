@@ -1,30 +1,12 @@
-ARG BUILDER_IMAGE=public.ecr.aws/docker/library/golang:1.22-alpine
-ARG DISTROLESS_IMAGE=gcr.io/distroless/static
+FROM golang:1.22-bookworm
 
-FROM ${BUILDER_IMAGE} as builder
+ARG TARGETARCH=amd64
+ARG GOLANGCI_LINT_VERSION=1.52.2
+ARG GORELEASER_VERSION=1.16.2
 
-# Ensure ca-certficates are up to date
-RUN update-ca-certificates
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh |\
+      sh -s -- -b $(go env GOPATH)/bin v${GOLANGCI_LINT_VERSION}
 
-WORKDIR /src
-
-COPY go.mod .
-
-RUN go mod download
-RUN go mod verify
-
-COPY . ./
-
-# build as a static binary without debug symbols
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-      -ldflags='-w -s -extldflags "-static"' -a \
-      -o /dist/ecrscanresults .
-
-# runtime image using static distroless base
-# using static nonroot image
-# user:group is nobody:nobody, uid:gid = 65534:65534
-FROM ${DISTROLESS_IMAGE}
-
-COPY --from=builder /dist/ecrscanresults /ecrscanresults
-
-ENTRYPOINT ["/ecrscanresults"]
+RUN curl -sSL -o goreleaser.deb https://github.com/goreleaser/goreleaser/releases/download/v${GORELEASER_VERSION}/goreleaser_${GORELEASER_VERSION}_${TARGETARCH}.deb && \
+      dpkg -i goreleaser.deb && \
+      rm goreleaser.deb

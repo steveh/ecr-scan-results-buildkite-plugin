@@ -1,3 +1,5 @@
+project_name: ecr-scan-results-buildkite-plugin
+
 builds:
   - binary: ecr-scan-results-buildkite-plugin
     env:
@@ -11,18 +13,22 @@ builds:
       - arm
       - arm64
       - ppc64le
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.builtBy=goreleaser
 
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
 
 archives:
-  - format: 'binary'
+  - format: "binary"
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  name_template: "{{ .Tag }}-next"
 
 changelog:
-  use: github-native
-
-# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"

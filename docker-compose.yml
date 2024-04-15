@@ -1,4 +1,14 @@
 services:
+  go:
+    build:
+      context: .
+    volumes:
+      - .:/work
+    working_dir: /work
+    environment:
+      - BUILDKITE_TAG
+      - GITHUB_TOKEN
+
   lint:
     image: buildkite/plugin-linter
     command: ['--id', 'buildkite/ecr-scan-results']
