@@ -152,6 +152,11 @@ When supplied, this is used to title the report annotation in place of the
 repository name and tag. Useful sometimes when the repo name and tag make the
 reports harder to scan visually.
 
+### `min-severity` (Optional, string)
+
+Include vulnerabilities with severity >= `min-severity` in the report. Defaults
+to "high". Note: "unknown" > "critical".
+
 ## Requirements
 
 ### ECR Basic scanning only

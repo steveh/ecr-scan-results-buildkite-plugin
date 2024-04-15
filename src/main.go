@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/cultureamp/ecrscanresults/buildkite"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/buildkite/ecrscanresults/buildkite"
 	"github.com/buildkite/ecrscanresults/finding"
 	"github.com/buildkite/ecrscanresults/findingconfig"
@@ -25,10 +25,11 @@ import (
 const pluginEnvironmentPrefix = "BUILDKITE_PLUGIN_ECR_SCAN_RESULTS"
 
 type Config struct {
-	Repository                string `envconfig:"IMAGE_NAME" split_words:"true" required:"true"`
-	ImageLabel                string `envconfig:"IMAGE_LABEL" split_words:"true"`
-	CriticalSeverityThreshold int32  `envconfig:"MAX_CRITICALS" split_words:"true"`
-	HighSeverityThreshold     int32  `envconfig:"MAX_HIGHS" split_words:"true"`
+	Repository                string                `envconfig:"IMAGE_NAME" split_words:"true" required:"true"`
+	ImageLabel                string                `envconfig:"IMAGE_LABEL" split_words:"true"`
+	CriticalSeverityThreshold int32                 `envconfig:"MAX_CRITICALS" split_words:"true"`
+	HighSeverityThreshold     int32                 `envconfig:"MAX_HIGHS" split_words:"true"`
+	MinSeverity               types.FindingSeverity `envconfig:"MIN_SEVERITY" default:"high" split_words:"true"`
 }
 
 func main() {
@@ -63,7 +64,7 @@ func main() {
 			// annotation fails. We annotate to notify the user of the issue,
 			// otherwise it would be lost in the log.
 			annotation := fmt.Sprintf("ECR scan results plugin could not create a result for the image %s", "")
-			_ = agent.Annotate(ctx, annotation, "error", hash(pluginConfig.Repository))
+			_ = agent.Annotate(ctx, annotation, buildkite.AnnotationError, hash(pluginConfig.Repository))
 		}
 	}
 }
@@ -169,11 +170,16 @@ func runCommand(ctx context.Context, pluginConfig Config, agent buildkite.Agent)
 	}
 	buildkite.Log("done.")
 
-	annotationStyle := "info"
-	if status != finding.StatusOk {
-		annotationStyle = "error"
-	} else if criticalFindings > 0 || highFindings > 0 {
-		annotationStyle = "warning"
+	annotationStyle := buildkite.AnnotationInfo
+	if status == finding.StatusThresholdsExceeded {
+		if criticalFindings > 0 {
+			annotationStyle = buildkite.AnnotationError
+		} else if pluginConfig.MinSeverity == types.FindingSeverityHigh && highFindings > 0 {
+			annotationStyle = buildkite.AnnotationError
+		} else {
+			annotationStyle = buildkite.AnnotationWarning
+			status = finding.StatusOk
+		}
 	}
 
 	err = agent.Annotate(ctx, string(annotation), annotationStyle, "scan_results_"+imageDigest.Digest)

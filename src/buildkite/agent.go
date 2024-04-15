@@ -11,6 +11,12 @@ import (
 	osexec "golang.org/x/sys/execabs"
 )
 
+const (
+	AnnotationError   = "error"
+	AnnotationWarning = "warning"
+	AnnotationInfo    = "info"
+)
+
 type Agent struct {
 }
 
